@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect
+from flask import Flask, render_template, request, flash, redirect, session
 from flask_debugtoolbar import DebugToolbarExtension
 from surveys import satisfaction_survey
 
@@ -10,18 +10,25 @@ app.debug = True
 # set a 'SECRET_KEY' to enable the Flask session cookies
 app.config['SECRET_KEY'] = '734-154-693'
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+app.config["SECRET_KEY"] = "secret_key"
 
 toolbar = DebugToolbarExtension(app)
 
-responses = []
+# responses = []
 
 @app.route('/')
 def show_main_page():
-    responses.clear()
     return render_template('base.html', survey=satisfaction_survey)
+
+@app.route('/start_survey', methods=['GET', 'POST'])
+def start_survey():
+    session['responses'] = []  # Clear the session variable 'responses'
+    return redirect('/questions/1')
 
 @app.route('/questions/<int:question_num>')
 def show_question(question_num):
+    responses = session.get('responses', [])
+
     if question_num < 1 or question_num > len(responses) + 1:
         # If the question number is out of range, redirect to the correct URL
         if len(responses) == len(satisfaction_survey.questions):
@@ -43,9 +50,12 @@ def show_question(question_num):
 
 @app.route('/answer', methods=['POST'])
 def handle_answer():
+    responses = session.get('responses', [])
     answer = request.form.get('choice')  # Use get() to handle missing field
     if answer is not None:
         responses.append(answer)
+        session['responses'] = responses
+
         if len(responses) == len(satisfaction_survey.questions):
             return redirect('/thanks')
         else:
